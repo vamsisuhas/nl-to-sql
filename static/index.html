@@ -61,10 +61,22 @@
 </div>
 
 <div class="panel" id="ask-panel" style="display: none;">
-  <strong>2. Ask a question</strong>
-  <div class="row" style="margin-top: 12px;">
-    <input id="q" type="text" placeholder='e.g. "How many events did robot-001 emit today?"'>
-    <button onclick="ask()">Ask</button>
+  <strong>2. Paste your OpenAI API key</strong>
+  <p class="muted" style="margin-top: 4px;">
+    This demo runs without a server-side key — bring your own. Your key is stored only in your browser's localStorage and sent only to this server (which forwards it to OpenAI without storing).
+    Get a key: <a href="https://platform.openai.com/api-keys" target="_blank">platform.openai.com/api-keys</a>
+  </p>
+  <div class="row" style="margin-top: 8px;">
+    <input id="api-key" type="password" placeholder="sk-...">
+    <button class="secondary" onclick="saveKey()">Save</button>
+  </div>
+
+  <div style="margin-top: 20px;">
+    <strong>3. Ask a question</strong>
+    <div class="row" style="margin-top: 12px;">
+      <input id="q" type="text" placeholder='e.g. "How many events did robot-001 emit today?"'>
+      <button onclick="ask()">Ask</button>
+    </div>
   </div>
 
   <div id="result" style="margin-top: 16px;"></div>
@@ -103,15 +115,30 @@ function showSchema(schema) {
   $("q").focus();
 }
 
+function saveKey() {
+  const key = $("api-key").value.trim();
+  if (key) {
+    localStorage.setItem("openai_api_key", key);
+    $("result").innerHTML = '<div class="ok">Key saved locally. Ask a question below.</div>';
+  }
+}
+
+function loadKey() {
+  const saved = localStorage.getItem("openai_api_key");
+  if (saved) $("api-key").value = saved;
+  return saved;
+}
+
 async function ask() {
   const question = $("q").value.trim();
   if (!question) return;
+  const api_key = $("api-key").value.trim() || localStorage.getItem("openai_api_key") || null;
   $("result").innerHTML = "<em>thinking…</em>";
 
   const res = await fetch("/api/ask", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ question }),
+    body: JSON.stringify({ question, api_key }),
   });
   const data = await res.json();
 
@@ -158,6 +185,9 @@ function escapeHtml(s) {
 $("q").addEventListener("keydown", e => {
   if (e.key === "Enter") ask();
 });
+
+// Restore saved API key on page load.
+window.addEventListener("DOMContentLoaded", loadKey);
 </script>
 
 </body>

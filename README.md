@@ -40,24 +40,27 @@ The result is a tool that an analyst or PM can use safely without writing SQL, w
 | **sqlparse**    | SQL parser used by the safety validator                            |
 | **HTMX**        | Frontend (no React build step — single static HTML file)           |
 
-## Quick start
+## Try the live demo
+
+The hosted version runs without a server-side OpenAI key — visitors bring their own. Paste your OpenAI API key into the UI, load the sample dataset, and ask anything. Your key is stored only in your browser's localStorage and forwarded once-per-request to OpenAI; the server never persists it.
+
+## Quick start (local)
 
 ```bash
 # 1. Install
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 
-# 2. Set your OpenAI key
-export OPENAI_API_KEY=sk-...
-
-# 3. Run
+# 2. Run (no env var needed — paste your key into the UI)
 uvicorn app.main:app --reload --port 8000
 
-# 4. Open
+# 3. Open
 open http://localhost:8000
 ```
 
-The home page lets you load the sample dataset (a CSV of fleet telemetry events) or paste a Postgres connection string. Once a database is loaded, ask anything in the input box.
+The home page lets you load the sample dataset (a CSV of fleet telemetry events) or paste a Postgres connection string. Paste your OpenAI key into the UI, then ask anything in the input box.
+
+If you'd rather configure the key server-side, set `OPENAI_API_KEY` before running uvicorn — the app falls back to it when no key is supplied per-request.
 
 ## Example questions
 

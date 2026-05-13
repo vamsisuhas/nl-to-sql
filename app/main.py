@@ -76,6 +76,7 @@ def get_schema():
 
 class AskRequest(BaseModel):
     question: str
+    api_key: Optional[str] = None  # bring-your-own-key from the UI
 
 
 @app.post("/api/ask")
@@ -88,7 +89,19 @@ def ask(req: AskRequest):
     schema_text = _state["db"].get_schema_text()
 
     log.info("translating question: %s", req.question[:120])
-    nl_response = nl_to_sql.translate(req.question, schema_text)
+    try:
+        nl_response = nl_to_sql.translate(req.question, schema_text, api_key=req.api_key)
+    except RuntimeError as e:
+        # Missing OpenAI key (most common: live demo, visitor hasn't pasted one).
+        return JSONResponse(
+            {
+                "ok": False,
+                "stage": "translate",
+                "reason": str(e),
+                "needs_api_key": True,
+                "sql": "",
+            }
+        )
 
     if not nl_response.sql:
         return JSONResponse(

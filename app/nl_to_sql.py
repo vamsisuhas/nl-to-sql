@@ -76,9 +76,25 @@ _FUNCTION_SPEC = {
 }
 
 
-def translate(question: str, schema_text: str, *, model: str = "gpt-4o-mini") -> NlToSqlResponse:
-    """Call OpenAI and return the parsed structured response."""
-    client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+def translate(
+    question: str,
+    schema_text: str,
+    *,
+    model: str = "gpt-4o-mini",
+    api_key: str | None = None,
+) -> NlToSqlResponse:
+    """Call OpenAI and return the parsed structured response.
+
+    api_key: if provided, used directly (preferred — supplied per-request from the
+    UI so the server doesn't need a key configured). Falls back to OPENAI_API_KEY
+    env var if not provided.
+    """
+    key = api_key or os.environ.get("OPENAI_API_KEY")
+    if not key:
+        raise RuntimeError(
+            "no OpenAI API key — pass one in the UI or set OPENAI_API_KEY on the server"
+        )
+    client = OpenAI(api_key=key)
 
     completion = client.chat.completions.create(
         model=model,
