@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>NL-to-SQL Analytics Tool</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      margin: 0; padding: 24px;
+      background: #f6f7f9; color: #1a1d24;
+    }
+    h1 { margin: 0 0 8px; font-size: 22px; }
+    p.muted { color: #5d6470; margin-top: 0; }
+    .panel {
+      background: white; border-radius: 8px;
+      padding: 16px; margin-bottom: 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+    button {
+      background: #1a1d24; color: white; border: 0;
+      padding: 8px 16px; border-radius: 6px; cursor: pointer;
+      font: inherit;
+    }
+    button:hover { background: #2c3038; }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+    button.secondary { background: white; color: #1a1d24; border: 1px solid #d1d6df; }
+    input[type=text], textarea {
+      width: 100%; padding: 8px; border: 1px solid #d1d6df;
+      border-radius: 6px; font: inherit;
+    }
+    pre { background: #f0f2f5; padding: 12px; border-radius: 6px; overflow-x: auto; font-size: 13px; }
+    table { border-collapse: collapse; width: 100%; font-size: 13px; }
+    th, td { padding: 6px 10px; border-bottom: 1px solid #eaecef; text-align: left; vertical-align: top; }
+    th { background: #f6f7f9; }
+    .row { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; }
+    .row > * { flex: 1; }
+    .row > button { flex: 0; }
+    .explain { font-style: italic; color: #5d6470; margin-bottom: 8px; }
+    .error { color: #c0392b; }
+    .ok { color: #27ae60; }
+  </style>
+</head>
+<body>
+
+<h1>NL-to-SQL Analytics Tool</h1>
+<p class="muted">Ask a question in plain English. The tool translates it to SQL, validates it's read-only, runs it, and shows the rows.</p>
+
+<div class="panel" id="connect-panel">
+  <strong>1. Pick a data source</strong>
+  <div class="row" style="margin-top: 12px;">
+    <button onclick="connectSample()">Load sample dataset</button>
+    <span class="muted">— a fleet-telemetry CSV with 500 rows</span>
+  </div>
+  <div class="row">
+    <input id="pg-conninfo" type="text" placeholder="postgres://user:pass@host:5432/db">
+    <button class="secondary" onclick="connectPostgres()">Connect Postgres</button>
+  </div>
+  <pre id="schema" style="display:none;"></pre>
+</div>
+
+<div class="panel" id="ask-panel" style="display: none;">
+  <strong>2. Ask a question</strong>
+  <div class="row" style="margin-top: 12px;">
+    <input id="q" type="text" placeholder='e.g. "How many events did robot-001 emit today?"'>
+    <button onclick="ask()">Ask</button>
+  </div>
+
+  <div id="result" style="margin-top: 16px;"></div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+async function connectSample() {
+  const res = await fetch("/api/connect", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ mode: "sample" }),
+  });
+  const data = await res.json();
+  showSchema(data.schema);
+}
+
+async function connectPostgres() {
+  const conninfo = $("pg-conninfo").value.trim();
+  if (!conninfo) return;
+  const res = await fetch("/api/connect", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ mode: "postgres", conninfo }),
+  });
+  const data = await res.json();
+  if (data.detail) { alert(data.detail); return; }
+  showSchema(data.schema);
+}
+
+function showSchema(schema) {
+  $("schema").style.display = "block";
+  $("schema").textContent = schema;
+  $("ask-panel").style.display = "block";
+  $("q").focus();
+}
+
+async function ask() {
+  const question = $("q").value.trim();
+  if (!question) return;
+  $("result").innerHTML = "<em>thinking…</em>";
+
+  const res = await fetch("/api/ask", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ question }),
+  });
+  const data = await res.json();
+
+  if (!data.ok) {
+    $("result").innerHTML = renderError(data);
+    return;
+  }
+  $("result").innerHTML = renderResult(data);
+}
+
+function renderError(data) {
+  return `
+    <div class="error"><strong>Couldn't answer:</strong> ${data.reason || data.explanation || "unknown"}</div>
+    ${data.sql ? `<pre>${escapeHtml(data.sql)}</pre>` : ""}
+    <div class="muted">Stage: ${data.stage}</div>
+  `;
+}
+
+function renderResult(data) {
+  const head = data.columns.map(c => `<th>${escapeHtml(c)}</th>`).join("");
+  const body = data.rows.map(row =>
+    "<tr>" + row.map(c => `<td>${escapeHtml(formatCell(c))}</td>`).join("") + "</tr>"
+  ).join("");
+  return `
+    <div class="explain">${escapeHtml(data.explanation)}</div>
+    <pre>${escapeHtml(data.sql)}</pre>
+    <table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>
+    <div class="muted" style="margin-top: 8px;">${data.n_rows} row${data.n_rows === 1 ? "" : "s"}</div>
+  `;
+}
+
+function formatCell(v) {
+  if (v === null || v === undefined) return "—";
+  if (typeof v === "object") return JSON.stringify(v);
+  return String(v);
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  }[c]));
+}
+
+$("q").addEventListener("keydown", e => {
+  if (e.key === "Enter") ask();
+});
+</script>
+
+</body>
+</html>

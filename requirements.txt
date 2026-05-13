@@ -1,0 +1,11 @@
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+openai==1.51.0
+duckdb==1.1.1
+psycopg[binary]==3.2.3
+sqlparse==0.5.1
+pydantic==2.9.2
+python-multipart==0.0.10
+jinja2==3.1.4
+pytest==8.3.3
+httpx==0.27.2
