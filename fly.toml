@@ -1,20 +1,21 @@
-# Fly.io deployment config.
-# Run `fly launch` to create the app, then `fly deploy` to push.
-# Required secret: OPENAI_API_KEY (set with `fly secrets set OPENAI_API_KEY=sk-...`).
+# fly.toml app configuration file generated for nl-to-sql-vamsi on 2026-05-13T14:33:18-07:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
 
-app = "nl-to-sql"
-primary_region = "sjc"
+app = 'nl-to-sql-vamsi'
+primary_region = 'sjc'
 
 [build]
 
 [http_service]
   internal_port = 8000
   force_https = true
-  auto_stop_machines = "stop"
+  auto_stop_machines = 'stop'
   auto_start_machines = true
   min_machines_running = 0
 
 [[vm]]
-  cpu_kind = "shared"
+  cpu_kind = 'shared'
   cpus = 1
   memory_mb = 512
